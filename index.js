@@ -1,88 +1,405 @@
 import puppeteer from "puppeteer";
+import express, { text } from 'express';
+import rateLimit from 'express-rate-limit';
+import { convertToJson, createNewBrowser, createPageWithTimeout, setCorsHeaders } from './browserUtils.js'
+import { createNewProductData } from "./commonData.js";
 
-// TODO
-// 1.) Classes that handles vendor specific data manipulation logic (they will each return a json object)
-// 2.) Find a way to write tests for these classes
-// 3.) Convert to express js app so we can make Rest API calls
+const app = express();
+const DEFAULT_SEARCH_TIMEOUT_INDEPENDENT_GROCER = 10 * 1000; // this vendor has a much slower response time compared to others BY FAR.
+const DEFAULT_SEARCH_TIMEOUT = 8 * 1000;
+const DEFAULT_TIMEOUT = 2 * 60 * 1000;
+const PORT = 3000;
+const LIMITER = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15m
+    max: 100, // // maximum 100 requests allowed per windowMs
+    message: 'You have exceeded the 100 requests in 24 hrs limit!',
+    standardHeaders: true,
+    legacyHeaders: false
+})
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36';
+const ORIGIN_LOCATION = 'http://localhost:3001';
+const GENERIC_API_ERROR = 'There was an error trying to process this API call';
 
-async function run() {
-    let browser;
+//create a new browser and try to reuse it for all endpoints
+let browser = await createNewBrowser();
+
+//this must be before the API code below
+app.use(LIMITER);
+
+app.get('/closeBrowser', async (req, res) => {
+
+    // Set CORS headers
+    res.setCorsHeaders(res, ORIGIN_LOCATION);
     try {
-        //https://www.youtube.com/watch?v=qo_fUjb02ns&t=1s&ab_channel=BeyondFireship
+        //in case it's closed for whatever reason
+        if (browser !== null && browser !== undefined && browser.isConnected()) {
+            await browser?.close();
+        }
+    } catch (e) {
+        console.error('Could not close the browser connection', e);
+    } finally {
+        res.status(200).send();
+    }
+});
 
-        //1 set up websocket
-        //username:password
-        //USERNAME-ZONE:PASSWORD (format if we want to use BrightData proxy services)
+/**
+ * Get Save-on-Foods Data.
+ * @route GET /GetSaveOnFoodsData
+ * @summary Loads the search results web page from Save-on-Foods with the search parameters, filters the data, and returns it as a JSON.  The vendor specific
+ * code, atm, is exactly like save-on-foods but for clarity and future proofing we want to separate them.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @returns {object} The response containing the JSON data from Save-on-Foods.
+ * @throws {Error} If there is an error retrieving the data.
+ */
+app.get('/GetSaveOnFoodsData', async (req, res) => {
+    let page;
+    const ENDPOINT = 'https://www.saveonfoods.com/sm/pickup/rsid/2287/results?q=pillsbury+pizza+pops&take=30&sort=price';
+    try {
+        page = await createPageWithTimeout(DEFAULT_TIMEOUT, ENDPOINT, browser, USER_AGENT);
 
-        // const auth = 'USERNAME-ZONE:PASSWORD';
-        // browser = await puppeteer.connect({
-        //     //browser web socket endpoint
-        //     browserWSEndpoint: `wss://${auth}@zproxy.lum-superproxy.io:9222`
-        // });
-
-        // browser = await puppeteer.launch({
-        //     executablePath: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
-        // });
-
-        browser = await puppeteer.launch();
-
-        //2 now we can do stuff with the browser
-        const page = await browser.newPage();
-
-        //2min timeout
-        page.setDefaultNavigationTimeout(2 * 60 * 1000);
-        await page.goto('https://www.saveonfoods.com/sm/pickup/rsid/2287/results?q=pillsbury+pizza+pops&take=30&sort=price');
-        // await page.goto('https://www.pricesmartfoods.com/sm/pickup/rsid/2274/results?q=pillsbury%20pizza%20pops');
-        // await page.goto('https://www.walmart.ca/search?q=Pillsbury%20Pizza%20Pops&c=10019'); //access forbidden
-        // await page.goto('https://www.realcanadiansuperstore.ca/search?search-bar=pillsbury%20pizza%20pops');
-
-        //for saveon foods
+        //Beginning of Vendor specific cleaning
+        //each product belongs to this class
         const selector = '[class*="ProductCardWrapper"]';
         const elements = await page.$$(selector);
 
         const collectedData = [];
 
         for (const element of elements) {
-            const text = await page.evaluate(el => el.innerHTML, element);
-            const titleElement = await page.evaluate(input => {
-                const element = input.querySelector('[data-testid$="-ProductNameTestId"]');
-                const children = element.querySelectorAll('*');
-                children.forEach(child => {
-                  child.textContent = '';
-                });
-                return element.textContent;
-              }, element);
+            //Old way - keeping for notes!  We need to get the text content of the product, but we can't just do element.textContent directly
+            //because this will return the textnode and it's children. (one of the child contains text 'open product description').
+            //Filter out the children's text (set to ''), and then finally query the textnode by itself.  QuerySelectorAll does not
+            //include text nodes, only child elements (which is why the actual product title is safe).
+            // const titleElement = await page.evaluate(input => {
+            //     const element = input.querySelector('[data-testid$="-ProductNameTestId"]');
+            //     const children = element.querySelectorAll('*');
+            //     children.forEach(child => {
+            //         child.textContent = '';
+            //     });
+            //     return element.textContent;
+            // }, element);
 
+            //New way - query the div that contains the text and then just get the first child
+            const titleElement = await page.evaluate((inputElement, productNameTestIdSelector) => {
+                const targetElement = inputElement.querySelector(productNameTestIdSelector);
+                return targetElement ? targetElement.firstChild.textContent : '';
+            }, element, '[data-testid$="-ProductNameTestId"]');
 
+            //Queries the price of this product
             const priceElement = await page.evaluate(input => input.querySelector('[class^="ProductCardPrice--"]').textContent, element);
-            const title = titleElement.trim();
-            const rawPrice = priceElement.trim();
-
-            const price = parseFloat(rawPrice.replace('$', ''));
-
-            const data = {
-                title: title,
-                price: price
-            };
+            const data = createNewProductData(titleElement, priceElement);
             collectedData.push(data);
         }
 
-        const uniqueArray = collectedData.filter((obj, index, self) => {
-            // Compare objects based on a unique identifier or specific properties
-            // For example, if your objects have an 'id' property:
-            return index === self.findIndex((o) => o.title === obj.title);
-        });
+        //convert to JSON string and trim()
+        const jsonData = await convertToJson(collectedData);
 
-        const jsonData = JSON.stringify(uniqueArray, null, 2);
-        console.log(jsonData);
-        return;
+        //Set CORS headers
+        setCorsHeaders(res, ORIGIN_LOCATION);
 
-    } catch (e) {
-        console.error('pizza scraping has encountered an error', e);
+        res.type('application/json').send(jsonData).status(200);
     }
-    finally {
-        await browser?.close();
+    catch (e) {
+        res.status(500).json({ error: GENERIC_API_ERROR });
+    } finally {
+        // Close the page
+        await page?.close();
     }
+});
+
+/**
+ * Get Pricesmart Data.
+ * @route GET /GetPricesmartData
+ * @summary Loads the search results web page from Pricesmart with the search parameters, filters the data, and returns it as a JSON.  The vendor specific
+ * code, atm, is exactly like save-on-foods but for clarity and future proofing we want to separate them.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @returns {object} The response containing the JSON data from Pricesmart.
+ * @throws {Error} If there is an error retrieving the data.
+ */
+app.get('/GetPricesmartData', async (req, res) => {
+    let page;
+    const ENDPOINT = 'https://www.pricesmartfoods.com/sm/pickup/rsid/2274/results?q=pillsbury+pizza+pops&take=30&sort=price';
+    try {
+        page = await createPageWithTimeout(DEFAULT_TIMEOUT, ENDPOINT, browser, USER_AGENT);
+
+        //Beginning of Vendor specific cleaning
+        //each product belongs to this class
+        const selector = '[class*="ProductCardWrapper"]';
+        const elements = await page.$$(selector);
+
+        const collectedData = [];
+
+        for (const element of elements) {
+            //New way - query the div that contains the text and then just get the first child
+            const titleElement = await page.evaluate((inputElement, productNameTestIdSelector) => {
+                const targetElement = inputElement.querySelector(productNameTestIdSelector);
+                return targetElement ? targetElement.firstChild.textContent : '';
+            }, element, '[data-testid$="-ProductNameTestId"]');
+
+            //Queries the price of this product
+            const priceElement = await page.evaluate(input => input.querySelector('[class^="ProductCardPrice--"]').textContent, element);
+            const data = createNewProductData(titleElement, priceElement);
+            collectedData.push(data);
+        }
+
+        //convert to JSON string and trim()
+        const jsonData = await convertToJson(collectedData);
+
+        //Set CORS headers
+        setCorsHeaders(res, ORIGIN_LOCATION);
+
+        res.type('application/json').send(jsonData).status(200);
+    }
+    catch (e) {
+        res.status(500).json({ error: GENERIC_API_ERROR });
+    } finally {
+        // Close the page
+        await page?.close();
+    }
+});
+
+/**
+ * Get Superstore Data.
+ * @route GET /GetSuperstoreData
+ * @summary Loads the search results web page from superstore with the search parameters, filters the data, and returns it as a JSON.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @returns {object} The response containing the JSON data from Superstore.
+ * @throws {Error} If there is an error retrieving the data.
+ */
+app.get('/GetSuperstoreData', async (req, res) => {
+    let page;
+    const ENDPOINT = 'https://www.realcanadiansuperstore.ca/search?search-bar=pillsbury%20pizza%20pops&sort=price-asc';
+    try {
+        page = await createPageWithTimeout(DEFAULT_TIMEOUT, ENDPOINT, browser, USER_AGENT);
+
+        //Beginning of Vendor specific cleaning
+        //each product belongs to this class
+        const selector = '[class="product-tile-group__list__item"]';
+        await page.waitForSelector(selector);
+        const elements = await page.$$(selector);
+
+        const collectedData = [];
+        for (const element of elements) {
+            //check for the textContent of the sponsored.  if it's 'Sponsored', then we skip this product (an ad)
+            const badgeElement = await page.evaluate(element => {
+                const badgeElement = element.querySelector('.product-badge__text.product-badge__text--product-tile');
+                return badgeElement.textContent;
+            }, element);
+
+            //if the badge null/undefined or ""
+            if ((badgeElement || '').trim().length !== 0) {
+                if (badgeElement == "Sponsored") {
+                    continue;
+                }
+            }
+
+            //Query for the price of the product
+            const priceElement = await page.evaluate(element => {
+                const priceElement = element.querySelector('.price__value.selling-price-list__item__price.selling-price-list__item__price--now-price__value');
+                return priceElement.textContent;
+            }, element);
+
+            //Query for the 'brand' of the product
+            const brandElement = await page.evaluate(element => {
+                const brandElement = element.querySelector('.product-name__item.product-name__item--brand');
+                return brandElement.textContent;
+            }, element);
+
+            //Query for the 'title' of the product
+            const titleElement = await page.evaluate(element => {
+                const titleElement = element.querySelector('.product-name__item.product-name__item--name');
+                return titleElement.getAttribute('title');
+            }, element);
+
+            const data = createNewProductData(brandElement + " " + titleElement, priceElement);
+            collectedData.push(data);
+        }
+
+        //convert to JSON string and trim()
+        const jsonData = await convertToJson(collectedData);
+
+        //Set CORS headers
+        setCorsHeaders(res, ORIGIN_LOCATION);
+
+        res.type('application/json').send(jsonData).status(200);
+    }
+    catch (e) {
+        res.status(500).json({ error: GENERIC_API_ERROR });
+    } finally {
+        // Close the page
+        await page?.close();
+    }
+});
+
+/**
+ * Get NoFrills Data.
+ * @route GET /GetNoFrillsData
+ * @summary Loads the search results web page from No Frills with the search parameters, filters the data, and returns it as a JSON.  The vendor specific
+ * code, atm, is exactly like Superstore but for clarity and future proofing we want to separate them.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @returns {object} The response containing the JSON data from No Frills.
+ * @throws {Error} If there is an error retrieving the data.
+ */
+app.get('/GetNoFrillsData', async (req, res) => {
+    let page;
+    const ENDPOINT = 'https://www.nofrills.ca/search?search-bar=pillsbury%20pizza%20pops&sort=price-asc';
+    try {
+        page = await createPageWithTimeout(DEFAULT_TIMEOUT, ENDPOINT, browser, USER_AGENT);
+
+        //Beginning of Vendor specific cleaning
+        //each product belongs to this class
+        const selector = '[class="product-tile-group__list__item"]';
+        await page.waitForSelector(selector);
+        const elements = await page.$$(selector);
+
+        const collectedData = [];
+        for (const element of elements) {
+            //check for the textContent of the sponsored.  if it's 'Sponsored', then we skip this product (an ad)
+            const badgeElement = await page.evaluate(element => {
+                const badgeElement = element.querySelector('.product-badge__text.product-badge__text--product-tile');
+                return badgeElement.textContent;
+            }, element);
+
+            //if the badge null/undefined or ""
+            if ((badgeElement || '').trim().length !== 0) {
+                if (badgeElement == "Sponsored") {
+                    continue;
+                }
+            }
+
+            //Query for the price of the product
+            const priceElement = await page.evaluate(element => {
+                const priceElement = element.querySelector('.price__value.selling-price-list__item__price.selling-price-list__item__price--now-price__value');
+                return priceElement.textContent;
+            }, element);
+
+            //Query for the 'brand' of the product
+            const brandElement = await page.evaluate(element => {
+                const brandElement = element.querySelector('.product-name__item.product-name__item--brand');
+                return brandElement.textContent;
+            }, element);
+
+            //Query for the 'title' of the product
+            const titleElement = await page.evaluate(element => {
+                const titleElement = element.querySelector('.product-name__item.product-name__item--name');
+                return titleElement.getAttribute('title');
+            }, element);
+
+            const data = createNewProductData(brandElement + " " + titleElement, priceElement);
+            collectedData.push(data);
+        }
+
+        //convert to JSON string and trim()
+        const jsonData = await convertToJson(collectedData);
+
+        //Set CORS headers
+        setCorsHeaders(res, ORIGIN_LOCATION);
+
+        res.type('application/json').send(jsonData).status(200);
+    }
+    catch (e) {
+        res.status(500).json({ error: GENERIC_API_ERROR });
+    } finally {
+        // Close the page
+        await page?.close();
+    }
+});
+
+/**
+ * Get Your Independent Grocer Data.  Not used at the moment, for some reason the page.waitForSelector is incredibly slow
+ * @route GET /GetYourIndependentGrocerData
+ * @summary Loads the search results web page from Your Independent Grocer Data with the search parameters, filters the data, and returns it as a JSON.  The vendor specific
+ * code, atm, is exactly like Superstore but for clarity and future proofing we want to separate them.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @returns {object} The response containing the JSON data from Your Independent Grocer Data.
+ * @throws {Error} If there is an error retrieving the data.
+ */
+app.get('/GetYourIndependentGrocerData', async (req, res) => {
+    let page;
+    const ENDPOINT = 'https://www.yourindependentgrocer.ca/search?search-bar=pillsbury%20pizza%20pops&sort=price-asc';
+    try {
+        page = await createPageWithTimeout(DEFAULT_TIMEOUT, ENDPOINT, browser, USER_AGENT);
+
+        //Beginning of Vendor specific cleaning
+        //each product belongs to this class
+        const selector = '[class="product-tile-group__list__item"]';
+        await page.waitForSelector(selector, { timeout: DEFAULT_SEARCH_TIMEOUT_INDEPENDENT_GROCER });
+        const elements = await page.$$(selector);
+
+        const collectedData = [];
+        for (const element of elements) {
+            //check for the textContent of the sponsored.  if it's 'Sponsored', then we skip this product (an ad)
+            const badgeElement = await page.evaluate(element => {
+                const badgeElement = element.querySelector('.product-badge__text.product-badge__text--product-tile');
+                return badgeElement.textContent;
+            }, element);
+
+            //if the badge null/undefined or ""
+            if ((badgeElement || '').trim().length !== 0) {
+                if (badgeElement == "Sponsored") {
+                    continue;
+                }
+            }
+
+            //Query for the price of the product
+            const priceElement = await page.evaluate(element => {
+                const priceElement = element.querySelector('.price__value.selling-price-list__item__price.selling-price-list__item__price--now-price__value');
+                return priceElement.textContent;
+            }, element);
+
+            //Query for the 'brand' of the product
+            const brandElement = await page.evaluate(element => {
+                const brandElement = element.querySelector('.product-name__item.product-name__item--brand');
+                return brandElement.textContent;
+            }, element);
+
+            //Query for the 'title' of the product
+            const titleElement = await page.evaluate(element => {
+                const titleElement = element.querySelector('.product-name__item.product-name__item--name');
+                return titleElement.getAttribute('title');
+            }, element);
+
+            const data = createNewProductData(brandElement + " " + titleElement, priceElement);
+            collectedData.push(data);
+        }
+
+        //convert to JSON string and trim()
+        const jsonData = await convertToJson(collectedData);
+
+        //Set CORS headers
+        setCorsHeaders(res, ORIGIN_LOCATION);
+
+        res.type('application/json').send(jsonData).status(200);
+    }
+    catch (e) {
+        //timeout error from Wait for selector
+        if (e.name === 'TimeoutError') {
+            handleTimeoutResponse(res);
+        }
+        else {
+            res.status(500).json({ error: GENERIC_API_ERROR });
+        }
+
+    } finally {
+        // Close the page
+        await page?.close();
+    }
+});
+
+async function handleTimeoutResponse(res) {
+    setCorsHeaders(res, ORIGIN_LOCATION);
+    const collectedData = [];
+    const data = createNewProductData("No products found / Timeout", "404");
+    collectedData.push(data);
+    const jsonData = await convertToJson(collectedData);
+    res.type('application/json').send(jsonData).status(200);
 }
 
-run();
+
+app.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+})
