@@ -49,6 +49,11 @@ app.get('/closeBrowser', async (req, res) => {
     }
 });
 
+app.get('/helloWorld', async (req, res) => {
+    res.json('Hello World!  🤩');
+    console.log("hello world!");
+});
+
 async function processLoblawsGroupData(page, endpoint, site, res) {
     page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
     if (page === undefined) {
@@ -146,7 +151,7 @@ async function processJimPattisonFoodGroupData(page, endpoint, res) {
         res.type('application/json').send(jsonData).status(500);
         return;
     }
-    
+
     //Beginning of Vendor specific cleaning
     //each product belongs to this class
     const selector = '[class*="ProductCardWrapper"]';
