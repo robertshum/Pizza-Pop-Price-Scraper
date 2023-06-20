@@ -30,9 +30,7 @@ export async function createPageWithTimeout(timeout, endpoint, inputBrowser, use
 
 export async function createNewBrowser() {
     const browser = await puppeteer.launch({
-        headless: 'new',
-        args: ['--incognito,'
-        ],
+        headless: 'new'
     });
     return browser;
 }
@@ -44,16 +42,8 @@ export async function convertToJson(collectedData) {
         // For example, if your objects have an 'id' property:
         return index === self.findIndex((o) => o.title === obj.title);
     });
-
+    uniqueArray.sort((a,b) => (a.price - b.price));
     let jsonData = JSON.stringify(uniqueArray, null, 2);
     jsonData = jsonData.trim();
     return jsonData;
-}
-
-//https://stackoverflow.com/questions/61238680/access-to-fetch-at-from-origin-http-localhost3000-has-been-blocked-by-cors
-export async function setCorsHeaders(res, location) {
-    res.setHeader('Access-Control-Allow-Origin', 'http://localhost:3001');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
 }
