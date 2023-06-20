@@ -50,7 +50,13 @@ app.get('/closeBrowser', async (req, res) => {
 });
 
 async function processLoblawsGroupData(page, endpoint, site, res) {
-    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
+    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
+    if (page === undefined) {
+        const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
+        const jsonData = await convertToJson([data]);
+        res.type('application/json').send(jsonData).status(500);
+        return;
+    }
 
     //Beginning of Vendor specific cleaning
     //each product belongs to this class
@@ -58,6 +64,12 @@ async function processLoblawsGroupData(page, endpoint, site, res) {
     const noResultsSelector = '[class*="-no-results__section-title"]';
 
     const selector = await getWinningSelector([productSelector, noResultsSelector], page);
+    if (selector === undefined) {
+        const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
+        const jsonData = await convertToJson([data]);
+        res.type('application/json').send(jsonData).status(500);
+        return;
+    }
 
     //if the winning selector is a no result, exit function but return 200 and empty deck.
     if (selector == noResultsSelector) {
@@ -127,13 +139,26 @@ async function processLoblawsGroupData(page, endpoint, site, res) {
 }
 
 async function processJimPattisonFoodGroupData(page, endpoint, res) {
-    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
-
+    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
+    if (page === undefined) {
+        const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
+        const jsonData = await convertToJson([data]);
+        res.type('application/json').send(jsonData).status(500);
+        return;
+    }
+    
     //Beginning of Vendor specific cleaning
     //each product belongs to this class
     const selector = '[class*="ProductCardWrapper"]';
     const noResultsSelector = '[class^="EmptyTitle-"]';
     const winningSelector = await getWinningSelector([selector, noResultsSelector], page);
+
+    if (winningSelector === undefined) {
+        const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
+        const jsonData = await convertToJson([data]);
+        res.type('application/json').send(jsonData).status(500);
+        return;
+    }
 
     //if the winning selector is a no result, exit function but return 200 and empty deck.
     if (winningSelector == noResultsSelector) {
@@ -352,21 +377,25 @@ async function respondOkWithMsg(msg, numberMsg, res) {
 //will be one returned.  Each selector has a race against a setTimeout,
 //hence the 2nd Promise.race().
 async function getWinningSelector(selectors, page) {
+    try {
 
-    const winningSelector = await Promise.race(
-        selectors.map(selector => {
-            // For each selector in the array, we create a new Promise
-            return Promise.race([
-                // We use Promise.race() to race two promises:
-                page.waitForSelector(selector),  // 1. Wait for the selector to appear on the page
-                new Promise((_, reject) => setTimeout(reject, DEFAULT_SEARCH_TIMEOUT))  // 2. Create a timeout promise
-            ]).then(() => selector);
-            // If either promise resolves, we extract the corresponding selector value
-        })
-    );
+        const winningSelector = await Promise.race(
+            selectors.map(selector => {
+                // For each selector in the array, we create a new Promise
+                return Promise.race([
+                    // We use Promise.race() to race two promises:
+                    page.waitForSelector(selector),  // 1. Wait for the selector to appear on the page
+                    new Promise((_, reject) => setTimeout(reject, DEFAULT_SEARCH_TIMEOUT))  // 2. Create a timeout promise
+                ]).then(() => selector);
+                // If either promise resolves, we extract the corresponding selector value
+            })
+        );
 
-    return winningSelector;
-    // Once the race is settled and we have the winning selector, we return it from the function
+        return winningSelector;
+        // Once the race is settled and we have the winning selector, we return it from the function
+    } catch (error) {
+        console.log(error + ": " + "Could not find any selectors");
+    }
 }
 
 app.listen(PORT, () => {

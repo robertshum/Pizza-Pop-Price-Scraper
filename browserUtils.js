@@ -1,6 +1,6 @@
 import puppeteer from "puppeteer";
 
-export async function createPageWithTimeout(timeout, endpoint, inputBrowser, userAgent) {
+export async function createPageWithTimeout(timeout, endpoint, inputBrowser, userAgent, res) {
 
     //another way to be fancy is to connect to BrightData (not free)
     //BrightData allows use to use rotating proxies to evade bot detection
@@ -14,23 +14,30 @@ export async function createPageWithTimeout(timeout, endpoint, inputBrowser, use
     //     browserWSEndpoint: `wss://${auth}@location_of_proxy:port`
     // });
 
-    let browser = inputBrowser;
+    try {
+        let browser = inputBrowser;
 
-    //in case it's closed for whatever reason
-    if (browser === null || browser === undefined || !browser.isConnected()) {
-        browser = createNewBrowser();
+        //in case it's closed for whatever reason
+        if (browser === null || browser === undefined || !browser.isConnected()) {
+            browser = createNewBrowser();
+        }
+
+        const page = await browser.newPage();
+        await page.setUserAgent(userAgent);
+        page.setDefaultNavigationTimeout(timeout);
+        await page.goto(endpoint);
+        return page;
+    } catch (error) {
+        console.error('Error in: createPageWithTimeout(...)', error);
+        return;
     }
 
-    const page = await browser.newPage();
-    await page.setUserAgent(userAgent);
-    page.setDefaultNavigationTimeout(timeout);
-    await page.goto(endpoint);
-    return page;
 }
 
 export async function createNewBrowser() {
     const browser = await puppeteer.launch({
-        headless: 'new'
+        headless: 'new',
+        //args: ['--proxy-server=192.241.189.47:31028']
     });
     return browser;
 }
@@ -42,7 +49,7 @@ export async function convertToJson(collectedData) {
         // For example, if your objects have an 'id' property:
         return index === self.findIndex((o) => o.title === obj.title);
     });
-    uniqueArray.sort((a,b) => (a.price - b.price));
+    uniqueArray.sort((a, b) => (a.price - b.price));
     let jsonData = JSON.stringify(uniqueArray, null, 2);
     jsonData = jsonData.trim();
     return jsonData;
