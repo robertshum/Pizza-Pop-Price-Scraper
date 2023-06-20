@@ -9,7 +9,7 @@ const app = express();
 const DEFAULT_SEARCH_TIMEOUT_INDEPENDENT_GROCER = 12 * 1000; // this vendor has a much slower response time compared to others BY FAR.
 const DEFAULT_SEARCH_TIMEOUT = 30 * 1000;
 const DEFAULT_TIMEOUT = 2 * 60 * 1000;
-const PORT = 3000;
+const PORT = 80;
 const LIMITER = rateLimit({
     windowMs: 15 * 60 * 1000, // 15m
     max: 100, // // maximum 100 requests allowed per windowMs
