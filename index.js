@@ -52,8 +52,6 @@ app.get('/closeBrowser', async (req, res) => {
 async function processLoblawsGroupData(page, endpoint, site, res) {
     page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
 
-    const mainSiteLink = 'https://www.supers'
-
     //Beginning of Vendor specific cleaning
     //each product belongs to this class
     const productSelector = '[class="product-tile-group__list__item"]';
