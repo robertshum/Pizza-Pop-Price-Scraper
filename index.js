@@ -2,14 +2,14 @@ import puppeteer from "puppeteer";
 import express, { text } from 'express';
 import rateLimit from 'express-rate-limit';
 import { convertToJson, createNewBrowser, createPageWithTimeout } from './browserUtils.js'
-import { createNewProductData } from "./commonData.js";
+import { createNewProductData } from './commonData.js';
 import cors from 'cors';
+import config from './config.json' assert { type: "json" };
 
 const app = express();
-const DEFAULT_SEARCH_TIMEOUT_INDEPENDENT_GROCER = 12 * 1000; // this vendor has a much slower response time compared to others BY FAR.
 const DEFAULT_SEARCH_TIMEOUT = 30 * 1000;
 const DEFAULT_TIMEOUT = 2 * 60 * 1000;
-const PORT = 3000;
+const PORT = config.port;
 const LIMITER = rateLimit({
     windowMs: 15 * 60 * 1000, // 15m
     max: 100, // // maximum 100 requests allowed per windowMs
@@ -18,7 +18,6 @@ const LIMITER = rateLimit({
     legacyHeaders: false
 })
 const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36';
-const ORIGIN_LOCATION = 'http://localhost:3001';
 const GENERIC_API_ERROR = 'There was an error trying to process this API call';
 const NO_PRODUCTS_FOUND = 'No Products Found.';
 const TIME_OUT_ERROR_NAME = 'TimeoutError';
@@ -35,8 +34,6 @@ app.use(cors());
 
 app.get('/closeBrowser', async (req, res) => {
 
-    // Set CORS headers
-    // res.setCorsHeaders(res, ORIGIN_LOCATION);
     try {
         //in case it's closed for whatever reason
         if (BROWSER !== null && BROWSER !== undefined && BROWSER.isConnected()) {
@@ -47,11 +44,6 @@ app.get('/closeBrowser', async (req, res) => {
     } finally {
         res.status(200).send();
     }
-});
-
-app.get('/helloWorld', async (req, res) => {
-    res.json('Hello World!  🤩');
-    console.log("hello world!");
 });
 
 async function processLoblawsGroupData(page, endpoint, site, res) {
@@ -121,7 +113,6 @@ async function processLoblawsGroupData(page, endpoint, site, res) {
         }, element);
 
         //Query link to the actual store item
-        //TODO
         const partialLink = await page.evaluate(element => {
             const hyperlinkParentElement = element.querySelector('.product-tile__details__info__name__link');
             const hyperlink = (hyperlinkParentElement !== undefined && hyperlinkParentElement !== null) ? hyperlinkParentElement.getAttribute("href") : '';
@@ -136,10 +127,6 @@ async function processLoblawsGroupData(page, endpoint, site, res) {
 
     //convert to JSON string and trim()
     const jsonData = await convertToJson(collectedData);
-
-    //Set CORS headers
-    //setCorsHeaders(res, ORIGIN_LOCATION);
-
     res.type('application/json').send(jsonData).status(200);
 }
 
@@ -402,6 +389,11 @@ async function getWinningSelector(selectors, page) {
         console.log(error + ": " + "Could not find any selectors");
     }
 }
+
+app.get('/helloWorld', async (req, res) => {
+    res.json('Hello World!  🤩');
+    console.log("hello world!");
+});
 
 app.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
