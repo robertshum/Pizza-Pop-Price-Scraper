@@ -92,14 +92,19 @@ Example of JSON results:
   }
 ]
 ```
+<br />
 
-Other:
+_Other Endpoints_:
+
+**Closes Browser**\
+Currently not needed, as every new GET request creates and closes a new page, when the app starts, it creates a Puppeteer browser that is shared for all users until shutdown.
 ```
-//Closes the browser.  Currently not needed, as every new GET request creates and closes a new page,
-//When the app starts, it creates a Puppeteer browser that is shared for all users until shutdown.
 /closeBrowser
+```
 
-//A simple endpoint that console logs 'hello world' for testing.
+**Testing**\
+A simple endpoint that console logs 'hello world' for testing.
+```
 /helloWorld
 ```
 
