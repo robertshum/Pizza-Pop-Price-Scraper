@@ -9,3 +9,5 @@ export const DEFAULT_LIMITER_WINDOWMS = 15 * 60 * 1000;
 
 // maximum 100 requests allowed per windowMs
 export const DEFAULT_LIMITER_MAX_REQUESTS = 100;
+
+export const MSG_EXCEEDED_REQUESTS = 'You have exceeded the requests in a 24 hr period.';

@@ -1,5 +1,5 @@
 import puppeteer from "puppeteer";
-import express, { text } from 'express';
+import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { convertToJson, createNewBrowser, createPageWithTimeout } from './browserUtils.js';
 import { createNewProductData } from './commonData.js';
@@ -9,14 +9,15 @@ import {
   DEFAULT_SEARCH_TIMEOUT,
   DEFAULT_TIMEOUT,
   DEFAULT_LIMITER_WINDOWMS,
-  DEFAULT_LIMITER_MAX_REQUESTS
+  DEFAULT_LIMITER_MAX_REQUESTS,
+  MSG_EXCEEDED_REQUESTS
 } from './config.js';
 
 const app = express();
 const LIMITER = rateLimit({
   windowMs: DEFAULT_LIMITER_WINDOWMS,
   max: DEFAULT_LIMITER_MAX_REQUESTS,
-  message: 'You have exceeded the 100 requests in 24 hrs limit!',
+  message: MSG_EXCEEDED_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false
 });
