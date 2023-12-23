@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "start": "node index.js"
   },
   "keywords": [],
@@ -18,6 +18,9 @@
     "puppeteer-core": "^20.2.1"
   },
   "type": "module",
+  "jest": {
+    "transform": {}
+  },
   "devDependencies": {
     "jest": "^29.7.0"
   }
