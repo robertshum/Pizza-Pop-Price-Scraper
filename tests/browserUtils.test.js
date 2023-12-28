@@ -120,7 +120,6 @@ describe('convertToJson function', () => {
 
     const resultingJsonString = convertToJson(collectedData);
     const parsedObj = JSON.parse(resultingJsonString);
-    console.log(parsedObj);
 
     // return [{}]
     expect(Object.keys(parsedObj).length).toBe(1);
