@@ -66,7 +66,7 @@ export async function initApp() {
     page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
     if (page === undefined) {
       const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
-      const jsonData = await convertToJson([data]);
+      const jsonData = convertToJson([data]);
       res.type('application/json').send(jsonData).status(500);
       return;
     }
@@ -79,7 +79,7 @@ export async function initApp() {
     const selector = await getWinningSelector([productSelector, noResultsSelector], page);
     if (selector === undefined) {
       const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
-      const jsonData = await convertToJson([data]);
+      const jsonData = convertToJson([data]);
       res.type('application/json').send(jsonData).status(500);
       return;
     }
@@ -142,7 +142,11 @@ export async function initApp() {
     }
 
     //convert to JSON string and trim()
-    const jsonData = await convertToJson(collectedData);
+    const jsonData = convertToJson(collectedData);
+
+    // TODO test
+    await page.close();
+    
     res.type('application/json').send(jsonData).status(200);
   }
 
@@ -150,7 +154,7 @@ export async function initApp() {
     page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
     if (page === undefined) {
       const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
-      const jsonData = await convertToJson([data]);
+      const jsonData = convertToJson([data]);
       res.type('application/json').send(jsonData).status(500);
       return;
     }
@@ -163,7 +167,7 @@ export async function initApp() {
 
     if (winningSelector === undefined) {
       const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
-      const jsonData = await convertToJson([data]);
+      const jsonData = convertToJson([data]);
       res.type('application/json').send(jsonData).status(500);
       return;
     }
@@ -213,7 +217,10 @@ export async function initApp() {
     }
 
     //convert to JSON string and trim()
-    const jsonData = await convertToJson(collectedData);
+    const jsonData = convertToJson(collectedData);
+
+    // TODO test
+    await page.close();
 
     res.type('application/json').send(jsonData).status(200);
   }
@@ -377,7 +384,7 @@ export async function initApp() {
 
   async function respondOkWithMsg(msg, numberMsg, res) {
     const data = createNewProductData(msg, numberMsg, '');
-    const jsonData = await convertToJson([data]);
+    const jsonData = convertToJson([data]);
     res.type('application/json').send(jsonData).status(200);
   }
 
