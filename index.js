@@ -12,8 +12,6 @@ import {
   MSG_EXCEEDED_REQUESTS
 } from './config.js';
 
-
-
 const LIMITER = rateLimit({
   windowMs: DEFAULT_LIMITER_WINDOWMS,
   max: DEFAULT_LIMITER_MAX_REQUESTS,
@@ -27,11 +25,9 @@ const NO_PRODUCTS_FOUND = 'No Products Found.';
 const TIME_OUT_ERROR_NAME = 'TimeoutError';
 const TIMEOUT_MSG = 'Timeout Error.';
 
-// TODO do we need this?
-let app;
 
 export async function initApp() {
-  app = express();
+  const app = express();
 
   //this must be before the API code below
   app.use(LIMITER);
@@ -39,26 +35,32 @@ export async function initApp() {
   //https://stackoverflow.com/questions/61238680/access-to-fetch-at-from-origin-http-localhost3000-has-been-blocked-by-cors
   app.use(cors());
 
-
-
   //create a new browser and try to reuse it for all endpoints
   let BROWSER = await createNewBrowser();
 
+  app.get('/closeBrowser', async (_req, res) => {
+    const result = closeBrowser();
+    if (result) {
+      res.status(200).send();
+      return;
+    }
 
-  // TODO make a function so that the endpoint calls it.  We want that exposed too for teardown in testing anyways
-  app.get('/closeBrowser', async (req, res) => {
+    // error
+    res.status(500).send();
+  });
 
+  async function closeBrowser() {
     try {
       //in case it's closed for whatever reason
       if (BROWSER !== null && BROWSER !== undefined && BROWSER.isConnected()) {
         await BROWSER?.close();
+        return true;
       }
     } catch (e) {
       console.error('Could not close the browser connection', e);
-    } finally {
-      res.status(200).send();
+      return false;
     }
-  });
+  }
 
   async function processLoblawsGroupData(page, endpoint, site, res) {
     page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
@@ -404,10 +406,9 @@ export async function initApp() {
     }
   }
 
-  app.get('/helloWorld', async (req, res) => {
+  app.get('/helloWorld', async (_req, res) => {
     res.json('Hello World!  🤩');
-    console.log("hello world!");
   });
 
-  return app;
+  return { app, closeBrowser };
 };

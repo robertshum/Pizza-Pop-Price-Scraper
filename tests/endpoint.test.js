@@ -1,40 +1,37 @@
 import request from 'supertest';
 import { initApp } from '../index.js';
-
-const TESTING_PORT = 3001; // Use a different port for testing
+import {
+  TESTING_PORT
+} from '../config.js';
 
 describe('GET /helloWorld test', () => {
 
+  // instance returned from listening on the app
   let listener;
-  let app;
+
+  // app exported from index.js
+  let appInstance;
+
+  // function to close puppeteer browser from index.js
+  let closeBrowserInstance;
 
   beforeAll(async () => {
-    app = await initApp();
-
-    listener = app.listen(TESTING_PORT);
+    const {app, closeBrowser} = await initApp();
+    appInstance = app;
+    closeBrowserInstance = closeBrowser;
+    listener = appInstance.listen(TESTING_PORT);
   });
 
 
   afterAll(async () => {
-
-    await request(app).get('/closeBrowser');
+    await closeBrowserInstance();
     listener.close();
   });
 
 
   test('should return json with Hello World msg', async () => {
-    const response = await request(app).get('/helloWorld');
-
+    const response = await request(appInstance).get('/helloWorld');
     expect(response.status).toBe(200);
     expect(response.body).toBe('Hello World!  🤩');
-
-  //   // return request(app)
-  //   //   .get('/helloWorld')
-  //   //   .expect(200)
-  //   //   .then(response => {
-  //   //     expect(response.body).toBe('Hello World!  🤩');
-  //   //     done();
-  //   //   });
-
   });
 });

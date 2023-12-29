@@ -1,4 +1,5 @@
 export const PORT = "3000";
+export const TESTING_PORT = "3001";
 export const DEFAULT_SEARCH_TIMEOUT = 30 * 1000;
 
 // 2m * 60s * 1000ms
