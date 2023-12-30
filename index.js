@@ -146,7 +146,7 @@ export async function initApp() {
 
     // TODO test
     await page.close();
-    
+
     res.type('application/json').send(jsonData).status(200);
   }
 
@@ -417,5 +417,9 @@ export async function initApp() {
     res.json('Hello World!  🤩');
   });
 
-  return { app, closeBrowser };
+  return {
+    app,
+    closeBrowser,
+    processLoblawsGroupData
+  };
 };
