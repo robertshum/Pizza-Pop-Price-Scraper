@@ -62,13 +62,23 @@ export async function initApp() {
     }
   }
 
-  async function processLoblawsGroupData(page, endpoint, site, res) {
-    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
+  async function processLoblawsGroupData(page, endpoint, site) {
+
+    const results = {
+      errorMsg: undefined,
+      jsonData: undefined
+    };
+
+    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
     if (page === undefined) {
       const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
       const jsonData = convertToJson([data]);
-      res.type('application/json').send(jsonData).status(500);
-      return;
+      // res.type('application/json').send(jsonData).status(500);
+
+      // TODO duplpicated str, move to config or const file
+      results.errorMsg = 'Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.';
+      results.jsonData = jsonData;
+      return results;
     }
 
     //Beginning of Vendor specific cleaning
@@ -80,14 +90,22 @@ export async function initApp() {
     if (selector === undefined) {
       const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
       const jsonData = convertToJson([data]);
-      res.type('application/json').send(jsonData).status(500);
-      return;
+      // res.type('application/json').send(jsonData).status(500);
+
+      // TODO duplpicated str, move to config or const file
+      results.errorMsg = 'Could not find any selectors.  Puppeteer page exceeded timeout.';
+      results.jsonData = jsonData;
+      return results;
     }
 
     //if the winning selector is a no result, exit function but return 200 and empty deck.
     if (selector == noResultsSelector) {
-      respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
-      return; //will run the finally block
+
+      // TODO this will have to be done from the caller
+      // respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+
+      results.errorMsg = NO_PRODUCTS_FOUND;
+      return results; //will run the finally block
     }
 
     //await page.waitForSelector(selector, { timeout: DEFAULT_SEARCH_TIMEOUT });
@@ -147,9 +165,14 @@ export async function initApp() {
     // TODO test
     await page.close();
 
-    res.type('application/json').send(jsonData).status(200);
+    // res.type('application/json').send(jsonData).status(200);
+
+    results.jsonData = jsonData;
+
+    return results;
   }
 
+  // TODO look at processLoblawsGroupData and refactor to return an object
   async function processJimPattisonFoodGroupData(page, endpoint, res) {
     page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
     if (page === undefined) {
@@ -301,7 +324,21 @@ export async function initApp() {
     const endpoint = `https://www.realcanadiansuperstore.ca/search?search-bar=${searchStr}&sort=price-asc`;
     const site = 'https://www.realcanadiansuperstore.ca';
     try {
-      processLoblawsGroupData(page, endpoint, site, res);
+      const results = await processLoblawsGroupData(page, endpoint, site);
+
+      if (results.errorMsg === NO_PRODUCTS_FOUND) {
+        respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+        return;
+      }
+
+      // for any other errors
+      if (results.errorMsg !== undefined) {
+        res.type('application/json').send(results.jsonData).status(500);
+        return;
+      }
+
+      // no errors here, return results
+      res.type('application/json').send(results.jsonData).status(200);
     }
     catch (e) {
       //timeout error from Wait for selector
@@ -334,7 +371,21 @@ export async function initApp() {
     const endpoint = `https://www.nofrills.ca/search?search-bar=${searchStr}&sort=price-asc`;
     const site = 'https://www.nofrills.ca';
     try {
-      processLoblawsGroupData(page, endpoint, site, res);
+      const results = await processLoblawsGroupData(page, endpoint, site);
+
+      if (results.errorMsg === NO_PRODUCTS_FOUND) {
+        respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+        return;
+      }
+
+      // for any other errors
+      if (results.errorMsg !== undefined) {
+        res.type('application/json').send(results.jsonData).status(500);
+        return;
+      }
+
+      // no errors here, return results
+      res.type('application/json').send(results.jsonData).status(200);
     }
     catch (e) {
       //timeout error from Wait for selector
@@ -366,7 +417,21 @@ export async function initApp() {
     const endpoint = `https://www.yourindependentgrocer.ca/search?search-bar=${searchStr}&sort=price-asc`;
     const site = 'https://yourindependentgrocer.ca';
     try {
-      processLoblawsGroupData(page, endpoint, site, res);
+      const results = await processLoblawsGroupData(page, endpoint, site);
+
+      if (results.errorMsg === NO_PRODUCTS_FOUND) {
+        respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+        return;
+      }
+
+      // for any other errors
+      if (results.errorMsg !== undefined) {
+        res.type('application/json').send(results.jsonData).status(500);
+        return;
+      }
+
+      // no errors here, return results
+      res.type('application/json').send(results.jsonData).status(200);
     }
     catch (e) {
       //timeout error from Wait for selector
