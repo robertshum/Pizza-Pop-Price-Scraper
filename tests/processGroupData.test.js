@@ -52,13 +52,23 @@ describe('Testing Process Group Data', () => {
     // 3 products total
     expect(jsonData.length).toBe(3);
 
+    const firstProduct = jsonData[0];
     const secondProduct = jsonData[1];
+    const thirdProduct = jsonData[2];
 
     // test the title, price and link of one of the products
     // note: the results should also be sorted by price, thats why we see 4.49 as the 2nd item and not the 1st. (3.49, 4.49, 5.49)
+    expect(firstProduct.title).toBe('Pillsbury Pizza Pockets Pepperoni');
+    expect(firstProduct.price).toBe(3.49);
+    expect(firstProduct.link).toBe(`${site}/pepperoni`)
+
     expect(secondProduct.title).toBe('Pillsbury Pizza Pockets 4 Cheese');
     expect(secondProduct.price).toBe(4.49);
     expect(secondProduct.link).toBe(`${site}/4cheese`)
+
+    expect(thirdProduct.title).toBe('Pillsbury Pizza Pockets Supreme Deluxe');
+    expect(thirdProduct.price).toBe(5.49);
+    expect(thirdProduct.link).toBe(`${site}/deluxe`)
   });
 
   test('processJimPattisonFoodGroupData should return product array related to Pillsbury', async () => {

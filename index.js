@@ -166,11 +166,8 @@ export async function initApp() {
     //convert to JSON string and trim()
     const jsonData = convertToJson(collectedData);
 
-    // TODO test
     await page.close();
-
-    // res.type('application/json').send(jsonData).status(200);
-
+    
     results.jsonData = jsonData;
 
     return results;
@@ -250,7 +247,6 @@ export async function initApp() {
     //convert to JSON string and trim()
     const jsonData = convertToJson(collectedData);
 
-    // TODO test
     await page.close();
 
     res.type('application/json').send(jsonData).status(200);
