@@ -155,7 +155,7 @@ export async function initApp() {
 
       const productLink = site + partialLink;
 
-      // TODO do this for other process
+      // Remove \n char and trim.
       const brandElementNoNewLines = brandElement.replace(/\n/g,'').trim();
       const titleElementNoNewLines = titleElement.replace(/\n/g,'').trim();
 
@@ -239,7 +239,11 @@ export async function initApp() {
 
       //Queries the price of this product
       const priceElement = await page.evaluate(input => input.querySelector('[class^="ProductCardPrice--"]').textContent, element);
-      const data = createNewProductData(titleElement, priceElement, hyperlinkElement);
+
+      // Remove \n char and trim.
+      const titleElementNoNewLines = titleElement.replace(/\n/g,'').trim();
+
+      const data = createNewProductData(titleElementNoNewLines, priceElement, hyperlinkElement);
       collectedData.push(data);
     }
 
