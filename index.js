@@ -105,7 +105,7 @@ export async function initApp() {
       // respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
 
       results.errorMsg = NO_PRODUCTS_FOUND;
-      return results; //will run the finally block
+      return results;
     }
 
     //await page.waitForSelector(selector, { timeout: DEFAULT_SEARCH_TIMEOUT });
@@ -156,8 +156,8 @@ export async function initApp() {
       const productLink = site + partialLink;
 
       // Remove \n char and trim.
-      const brandElementNoNewLines = brandElement.replace(/\n/g,'').trim();
-      const titleElementNoNewLines = titleElement.replace(/\n/g,'').trim();
+      const brandElementNoNewLines = brandElement.replace(/\n/g, '').trim();
+      const titleElementNoNewLines = titleElement.replace(/\n/g, '').trim();
 
       const data = createNewProductData(brandElementNoNewLines + " " + titleElementNoNewLines, priceElement, productLink);
       collectedData.push(data);
@@ -167,20 +167,30 @@ export async function initApp() {
     const jsonData = convertToJson(collectedData);
 
     await page.close();
-    
+
     results.jsonData = jsonData;
 
     return results;
   }
 
   // TODO look at processLoblawsGroupData and refactor to return an object
-  async function processJimPattisonFoodGroupData(page, endpoint, res) {
-    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT, res);
+  async function processJimPattisonFoodGroupData(page, endpoint) {
+
+    const results = {
+      errorMsg: undefined,
+      jsonData: undefined
+    };
+
+    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
     if (page === undefined) {
       const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
       const jsonData = convertToJson([data]);
-      res.type('application/json').send(jsonData).status(500);
-      return;
+      // res.type('application/json').send(jsonData).status(500);
+
+      // TODO duplpicated str, move to config or const file
+      results.errorMsg = 'Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.';
+      results.jsonData = jsonData;
+      return results;
     }
 
     //Beginning of Vendor specific cleaning
@@ -192,14 +202,22 @@ export async function initApp() {
     if (winningSelector === undefined) {
       const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
       const jsonData = convertToJson([data]);
-      res.type('application/json').send(jsonData).status(500);
-      return;
+      // res.type('application/json').send(jsonData).status(500);
+
+      // TODO duplpicated str, move to config or const file
+      results.errorMsg = 'Could not find any selectors.  Puppeteer page exceeded timeout.';
+      results.jsonData = jsonData;
+      return results;
     }
 
     //if the winning selector is a no result, exit function but return 200 and empty deck.
     if (winningSelector == noResultsSelector) {
-      respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
-      return; //will run the finally block
+
+      // TODO this will have to be done from the caller
+      // respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+
+      results.errorMsg = NO_PRODUCTS_FOUND;
+      return results;
     }
 
     //await page.waitForSelector(winningSelector, { timeout: DEFAULT_SEARCH_TIMEOUT });
@@ -238,7 +256,7 @@ export async function initApp() {
       const priceElement = await page.evaluate(input => input.querySelector('[class^="ProductCardPrice--"]').textContent, element);
 
       // Remove \n char and trim.
-      const titleElementNoNewLines = titleElement.replace(/\n/g,'').trim();
+      const titleElementNoNewLines = titleElement.replace(/\n/g, '').trim();
 
       const data = createNewProductData(titleElementNoNewLines, priceElement, hyperlinkElement);
       collectedData.push(data);
@@ -249,7 +267,10 @@ export async function initApp() {
 
     await page.close();
 
-    res.type('application/json').send(jsonData).status(200);
+    results.jsonData = jsonData;
+
+    // res.type('application/json').send(jsonData).status(200);
+    return results;
   }
 
   /**
@@ -267,7 +288,21 @@ export async function initApp() {
     const searchStr = encodeURI(req.query.search); //<--'search'  is the attribute (strange how it doesnt take a string value instead)
     const endpoint = `https://www.saveonfoods.com/sm/pickup/rsid/2287/results?q=${searchStr}&take=30&sort=price`;
     try {
-      processJimPattisonFoodGroupData(page, endpoint, res);
+      const results = await processJimPattisonFoodGroupData(page, endpoint);
+
+      if (results.errorMsg === NO_PRODUCTS_FOUND) {
+        respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+        return;
+      }
+
+      // for any other errors
+      if (results.errorMsg !== undefined) {
+        res.type('application/json').send(results.jsonData).status(500);
+        return;
+      }
+
+      // no errors here, return results
+      res.type('application/json').send(results.jsonData).status(200);
     } catch (e) {
       //timeout error from Wait for selector
       if (e.name === TIME_OUT_ERROR_NAME) {
@@ -297,7 +332,21 @@ export async function initApp() {
     const searchStr = encodeURI(req.query.search);
     const endpoint = `https://www.pricesmartfoods.com/sm/pickup/rsid/2274/results?q=${searchStr}&take=30&sort=price`;
     try {
-      processJimPattisonFoodGroupData(page, endpoint, res);
+      const results = await processJimPattisonFoodGroupData(page, endpoint, res);
+
+      if (results.errorMsg === NO_PRODUCTS_FOUND) {
+        respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
+        return;
+      }
+
+      // for any other errors
+      if (results.errorMsg !== undefined) {
+        res.type('application/json').send(results.jsonData).status(500);
+        return;
+      }
+
+      // no errors here, return results
+      res.type('application/json').send(results.jsonData).status(200);
     }
     catch (e) {
       //timeout error from Wait for selector
