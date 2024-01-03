@@ -1,4 +1,3 @@
-import puppeteer from "puppeteer";
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { convertToJson, createNewBrowser, createPageWithTimeout } from './browserUtils.js';
@@ -9,7 +8,12 @@ import {
   DEFAULT_TIMEOUT,
   DEFAULT_LIMITER_WINDOWMS,
   DEFAULT_LIMITER_MAX_REQUESTS,
-  MSG_EXCEEDED_REQUESTS
+  MSG_EXCEEDED_REQUESTS,
+  USER_AGENT,
+  GENERIC_API_ERROR,
+  NO_PRODUCTS_FOUND,
+  TIME_OUT_ERROR_NAME,
+  TIMEOUT_MSG
 } from './config.js';
 
 const LIMITER = rateLimit({
@@ -19,12 +23,6 @@ const LIMITER = rateLimit({
   standardHeaders: true,
   legacyHeaders: false
 });
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36';
-const GENERIC_API_ERROR = 'There was an error trying to process this API call';
-const NO_PRODUCTS_FOUND = 'No Products Found.';
-const TIME_OUT_ERROR_NAME = 'TimeoutError';
-const TIMEOUT_MSG = 'Timeout Error.';
-
 
 export async function initApp() {
   const app = express();
