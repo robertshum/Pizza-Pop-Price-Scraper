@@ -493,6 +493,7 @@ export async function initApp() {
   return {
     app,
     closeBrowser,
-    processLoblawsGroupData
+    processLoblawsGroupData,
+    processJimPattisonFoodGroupData
   };
 };

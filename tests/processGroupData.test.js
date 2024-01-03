@@ -60,4 +60,8 @@ describe('Testing Process Group Data', () => {
     expect(secondProduct.price).toBe(4.49);
     expect(secondProduct.link).toBe(`${site}/4cheese`)
   });
+
+  test('processJimPattisonFoodGroupData should return product array related to Pillsbury', async () => {
+    // TODO
+  });
 });
