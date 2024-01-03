@@ -155,7 +155,11 @@ export async function initApp() {
 
       const productLink = site + partialLink;
 
-      const data = createNewProductData(brandElement + " " + titleElement, priceElement, productLink);
+      // TODO do this for other process
+      const brandElementNoNewLines = brandElement.replace(/\n/g,'').trim();
+      const titleElementNoNewLines = titleElement.replace(/\n/g,'').trim();
+
+      const data = createNewProductData(brandElementNoNewLines + " " + titleElementNoNewLines, priceElement, productLink);
       collectedData.push(data);
     }
 

@@ -19,7 +19,7 @@ export async function createPageWithTimeout(timeout, endpoint, inputBrowser, use
 
     //in case it's closed for whatever reason
     if (browser === null || browser === undefined || !browser.isConnected()) {
-      browser = createNewBrowser();
+      browser = await createNewBrowser();
     }
 
     const page = await browser.newPage();

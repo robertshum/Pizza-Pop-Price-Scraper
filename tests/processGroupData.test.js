@@ -2,36 +2,62 @@ import { initApp } from '../index.js';
 import {
   TESTING_PORT
 } from '../config.js';
+import path from 'path';
 
 describe('Testing Process Group Data', () => {
 
-    // instance returned from listening on the app
-    let listener;
+  // instance returned from listening on the app
+  let listener;
 
-    // app exported from index.js
-    let appInstance;
+  // app exported from index.js
+  let appInstance;
 
-    // function to close puppeteer browser from index.js
-    let closeBrowserInstance;
-  
-    beforeAll(async () => {
-      const { app, closeBrowser, processLoblawsGroupData } = await initApp();
-      appInstance = app;
-      closeBrowserInstance = closeBrowser;
-      listener = appInstance.listen(TESTING_PORT);
-    });
-  
-    afterAll(async () => {
-      await closeBrowserInstance();
-      listener.close();
-    });
+  // function to close puppeteer browser from index.js
+  let closeBrowserInstance;
 
-    
+  // scraper logic for loblaws food group
+  let loblawsGroupData;
+
+  beforeAll(async () => {
+    const { app, closeBrowser, processLoblawsGroupData } = await initApp();
+    appInstance = app;
+    closeBrowserInstance = closeBrowser;
+    listener = appInstance.listen(TESTING_PORT);
+    loblawsGroupData = processLoblawsGroupData;
+  });
+
+  afterAll(async () => {
+    await closeBrowserInstance();
+    listener.close();
+  });
+
+
   test('processLoblawsGroupData should return product array related to Pillsbury', async () => {
-    // TODO
+
     // call processLoblawsGroupData
     // endpoint is the physical HTML file saved on file
     // page is an undefined variable (will be defined in createPageWithTimeout)
     // site is the root website. (ex: https://www.superstore.ca)
+
+    let page = undefined;
+
+    const currentFileUrl = new URL(import.meta.url);
+    const directoryPath = path.dirname(currentFileUrl.pathname);
+    const endpoint = `file://${directoryPath}/pages/loblaws_group.html`;
+
+    const site = 'https://www.example.com';
+    const results = await loblawsGroupData(page, endpoint, site);
+    let jsonData = JSON.parse(results.jsonData);
+
+    // 3 products total
+    expect(jsonData.length).toBe(3);
+
+    const secondProduct = jsonData[1];
+
+    // test the title, price and link of one of the products
+    // note: the results should also be sorted by price, thats why we see 4.49 as the 2nd item and not the 1st. (3.49, 4.49, 5.49)
+    expect(secondProduct.title).toBe('Pillsbury Pizza Pockets 4 Cheese');
+    expect(secondProduct.price).toBe(4.49);
+    expect(secondProduct.link).toBe(`${site}/4cheese`)
   });
 });
