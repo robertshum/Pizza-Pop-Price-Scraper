@@ -1,4 +1,7 @@
 import puppeteer from "puppeteer";
+import {
+  DEFAULT_SEARCH_TIMEOUT,
+} from './config.js';
 
 export async function createPageWithTimeout(timeout, endpoint, inputBrowser, userAgent, res) {
 
@@ -41,6 +44,31 @@ export async function createNewBrowser() {
   });
   return browser;
 }
+
+  //This will race each selector and  the one with the fastest result
+  //will be one returned.  Each selector has a race against a setTimeout,
+  //hence the 2nd Promise.race().
+  export async function getWinningSelector(selectors, page) {
+    try {
+
+      const winningSelector = await Promise.race(
+        selectors.map(selector => {
+          // For each selector in the array, we create a new Promise
+          return Promise.race([
+            // We use Promise.race() to race two promises:
+            page.waitForSelector(selector),  // 1. Wait for the selector to appear on the page
+            new Promise((_, reject) => setTimeout(reject, DEFAULT_SEARCH_TIMEOUT))  // 2. Create a timeout promise
+          ]).then(() => selector);
+          // If either promise resolves, we extract the corresponding selector value
+        })
+      );
+
+      return winningSelector;
+      // Once the race is settled and we have the winning selector, we return it from the function
+    } catch (error) {
+      console.log(error + ": " + "Could not find any selectors");
+    }
+  }
 
 export function convertToJson(collectedData) {
 
