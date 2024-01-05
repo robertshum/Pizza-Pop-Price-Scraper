@@ -3,7 +3,7 @@ import {
   DEFAULT_SEARCH_TIMEOUT,
 } from './config.js';
 
-export async function createPageWithTimeout(timeout, endpoint, inputBrowser, userAgent, res) {
+export async function createPageWithTimeout(timeout, endpoint, inputBrowser, userAgent) {
 
   //another way to be fancy is to connect to BrightData (not free)
   //BrightData allows use to use rotating proxies to evade bot detection

@@ -12,29 +12,28 @@ describe('Testing Process Group Data', () => {
   // app exported from index.js
   let appInstance;
 
-  // function to close puppeteer browser from index.js
-  let closeBrowserInstance;
-
   // scraper logic for loblaws food group
   let loblawsGroupData;
 
   // scraper logic for jim pattison food group
   let jimPattisonFoodGroupData;
 
+  let testBrowser;
+
   beforeAll(async () => {
     const { app,
-      closeBrowser,
       processLoblawsGroupData,
-      processJimPattisonFoodGroupData } = await initApp();
+      processJimPattisonFoodGroupData,
+      browser } = await initApp();
     appInstance = app;
-    closeBrowserInstance = closeBrowser;
     listener = appInstance.listen(TESTING_PORT);
     loblawsGroupData = processLoblawsGroupData;
     jimPattisonFoodGroupData = processJimPattisonFoodGroupData;
+    testBrowser = browser;
   });
 
   afterAll(async () => {
-    await closeBrowserInstance();
+    await testBrowser?.close();
     listener.close();
   });
 
@@ -53,7 +52,7 @@ describe('Testing Process Group Data', () => {
     const endpoint = `file://${directoryPath}/pages/loblaws_group.html`;
 
     const site = 'https://www.superstore.com';
-    const results = await loblawsGroupData(page, endpoint, site);
+    const results = await loblawsGroupData(page, endpoint, site, testBrowser);
     let jsonData = JSON.parse(results.jsonData);
 
     // 3 products total
@@ -92,7 +91,7 @@ describe('Testing Process Group Data', () => {
     const endpoint = `file://${directoryPath}/pages/jim_pattison_group.html`;
 
     const site = 'https://www.saveonfoods.com';
-    const results = await jimPattisonFoodGroupData(page, endpoint, site);
+    const results = await jimPattisonFoodGroupData(page, endpoint, testBrowser);
     let jsonData = JSON.parse(results.jsonData);
 
     // 3 products total

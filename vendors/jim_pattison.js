@@ -12,14 +12,14 @@ import {
 
 import { createNewProductData } from '../commonData.js';
 
-export async function processJimPattisonFoodGroupData(page, endpoint, BROWSER) {
+export async function processJimPattisonFoodGroupData(page, endpoint, browser) {
 
   const results = {
     errorMsg: undefined,
     jsonData: undefined
   };
 
-  page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
+  page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, browser, USER_AGENT);
   if (page === undefined) {
     const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
     const jsonData = convertToJson([data]);

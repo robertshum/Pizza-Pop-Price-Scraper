@@ -40,7 +40,7 @@ export async function initApp() {
   app.use(cors());
 
   //create a new browser and try to reuse it for all endpoints
-  let BROWSER = await createNewBrowser();
+  let browser = await createNewBrowser();
 
   app.get('/closeBrowser', async (_req, res) => {
     const result = closeBrowser();
@@ -56,8 +56,8 @@ export async function initApp() {
   async function closeBrowser() {
     try {
       //in case it's closed for whatever reason
-      if (BROWSER !== null && BROWSER !== undefined && BROWSER.isConnected()) {
-        await BROWSER?.close();
+      if (browser !== null && browser !== undefined && browser.isConnected()) {
+        await browser?.close();
         return true;
       }
     } catch (e) {
@@ -81,7 +81,7 @@ export async function initApp() {
     const searchStr = encodeURI(req.query.search); //<--'search'  is the attribute (strange how it doesnt take a string value instead)
     const endpoint = `https://www.saveonfoods.com/sm/pickup/rsid/2287/results?q=${searchStr}&take=30&sort=price`;
     try {
-      const results = await processJimPattisonFoodGroupData(page, endpoint, BROWSER);
+      const results = await processJimPattisonFoodGroupData(page, endpoint, browser);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -125,7 +125,7 @@ export async function initApp() {
     const searchStr = encodeURI(req.query.search);
     const endpoint = `https://www.pricesmartfoods.com/sm/pickup/rsid/2274/results?q=${searchStr}&take=30&sort=price`;
     try {
-      const results = await processJimPattisonFoodGroupData(page, endpoint, BROWSER);
+      const results = await processJimPattisonFoodGroupData(page, endpoint, browser);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -170,7 +170,7 @@ export async function initApp() {
     const endpoint = `https://www.realcanadiansuperstore.ca/search?search-bar=${searchStr}&sort=price-asc`;
     const site = 'https://www.realcanadiansuperstore.ca';
     try {
-      const results = await processLoblawsGroupData(page, endpoint, site, BROWSER);
+      const results = await processLoblawsGroupData(page, endpoint, site, browser);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -217,7 +217,7 @@ export async function initApp() {
     const endpoint = `https://www.nofrills.ca/search?search-bar=${searchStr}&sort=price-asc`;
     const site = 'https://www.nofrills.ca';
     try {
-      const results = await processLoblawsGroupData(page, endpoint, site, BROWSER);
+      const results = await processLoblawsGroupData(page, endpoint, site, browser);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -263,7 +263,7 @@ export async function initApp() {
     const endpoint = `https://www.yourindependentgrocer.ca/search?search-bar=${searchStr}&sort=price-asc`;
     const site = 'https://yourindependentgrocer.ca';
     try {
-      const results = await processLoblawsGroupData(page, endpoint, site, BROWSER);
+      const results = await processLoblawsGroupData(page, endpoint, site, browser);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -308,6 +308,7 @@ export async function initApp() {
     app,
     closeBrowser,
     processLoblawsGroupData,
-    processJimPattisonFoodGroupData
+    processJimPattisonFoodGroupData,
+    browser
   };
 };
