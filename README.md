@@ -123,9 +123,15 @@ A simple endpoint that console logs 'hello world' for testing.
 # Tech Stack
 [![image](https://img.shields.io/badge/Puppeteer-40B5A4?style=for-the-badge&logo=Puppeteer&logoColor=white)](https://pptr.dev/)\
 [![image](https://img.shields.io/badge/Express.js-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)\
-[![image](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/en)
+[![image](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/en)\
+[![image](https://img.shields.io/badge/Jest-323330?style=for-the-badge&logo=Jest&logoColor=white)](https://jestjs.io/)\
+SuperTest - https://www.npmjs.com/package/supertest
 
+# Testing
 
+I have several tests created, mostly unit and integration tests (found in the tests folder).  The endpoint tests uses `SuperTest` to make api calls to the vendors (so it's more like a e2e test... but for the back end).
+
+to run the tests, do `npm test`.
 
 # License
 
