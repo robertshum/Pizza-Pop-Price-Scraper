@@ -8,6 +8,8 @@ import {
   DEFAULT_TIMEOUT,
   USER_AGENT,
   NO_PRODUCTS_FOUND,
+  MSG_CREATE_PAGE_FAILURE,
+  MSG_COULD_NOT_FIND_SELECTORS,
 } from '../config.js';
 
 import { createNewProductData } from '../commonData.js';
@@ -21,12 +23,9 @@ export async function processLoblawsGroupData(page, endpoint, site, browser) {
 
   page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, browser, USER_AGENT);
   if (page === undefined) {
-    const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
+    const data = createNewProductData(MSG_CREATE_PAGE_FAILURE, '', '');
     const jsonData = convertToJson([data]);
-    // res.type('application/json').send(jsonData).status(500);
-
-    // TODO duplicated str, move to config or const file
-    results.errorMsg = 'Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.';
+    results.errorMsg = MSG_CREATE_PAGE_FAILURE;
     results.jsonData = jsonData;
     return results;
   }
@@ -38,22 +37,15 @@ export async function processLoblawsGroupData(page, endpoint, site, browser) {
 
   const selector = await getWinningSelector([productSelector, noResultsSelector], page);
   if (selector === undefined) {
-    const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
+    const data = createNewProductData(MSG_COULD_NOT_FIND_SELECTORS, '', '');
     const jsonData = convertToJson([data]);
-    // res.type('application/json').send(jsonData).status(500);
-
-    // TODO duplpicated str, move to config or const file
-    results.errorMsg = 'Could not find any selectors.  Puppeteer page exceeded timeout.';
+    results.errorMsg = MSG_COULD_NOT_FIND_SELECTORS;
     results.jsonData = jsonData;
     return results;
   }
 
   //if the winning selector is a no result, exit function but return 200 and empty deck.
   if (selector == noResultsSelector) {
-
-    // TODO this will have to be done from the caller
-    // respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
-
     results.errorMsg = NO_PRODUCTS_FOUND;
     return results;
   }

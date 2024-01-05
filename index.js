@@ -1,6 +1,6 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
-import { convertToJson, createNewBrowser, createPageWithTimeout } from './browserUtils.js';
+import { convertToJson, createNewBrowser } from './browserUtils.js';
 import { createNewProductData } from './commonData.js';
 import cors from 'cors';
 import {
