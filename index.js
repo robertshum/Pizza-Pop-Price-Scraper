@@ -4,12 +4,9 @@ import { convertToJson, createNewBrowser, createPageWithTimeout } from './browse
 import { createNewProductData } from './commonData.js';
 import cors from 'cors';
 import {
-  DEFAULT_SEARCH_TIMEOUT,
-  DEFAULT_TIMEOUT,
   DEFAULT_LIMITER_WINDOWMS,
   DEFAULT_LIMITER_MAX_REQUESTS,
   MSG_EXCEEDED_REQUESTS,
-  USER_AGENT,
   GENERIC_API_ERROR,
   NO_PRODUCTS_FOUND,
   TIME_OUT_ERROR_NAME,
@@ -20,6 +17,10 @@ import {
 import {
   processLoblawsGroupData
 } from './vendors/loblaws.js';
+
+import {
+  processJimPattisonFoodGroupData
+} from './vendors/jim_pattison.js';
 
 const LIMITER = rateLimit({
   windowMs: DEFAULT_LIMITER_WINDOWMS,
@@ -65,106 +66,6 @@ export async function initApp() {
     }
   }
 
-  // TODO look at processLoblawsGroupData and refactor to return an object
-  async function processJimPattisonFoodGroupData(page, endpoint) {
-
-    const results = {
-      errorMsg: undefined,
-      jsonData: undefined
-    };
-
-    page = await createPageWithTimeout(DEFAULT_TIMEOUT, endpoint, BROWSER, USER_AGENT);
-    if (page === undefined) {
-      const data = createNewProductData('Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.', '', '');
-      const jsonData = convertToJson([data]);
-      // res.type('application/json').send(jsonData).status(500);
-
-      // TODO duplpicated str, move to config or const file
-      results.errorMsg = 'Failed to create page from Puppeteer.  Check/rotate proxy or use localhost.';
-      results.jsonData = jsonData;
-      return results;
-    }
-
-    //Beginning of Vendor specific cleaning
-    //each product belongs to this class
-    const selector = '[class*="ProductCardWrapper"]';
-    const noResultsSelector = '[class^="EmptyTitle-"]';
-    const winningSelector = await getWinningSelector([selector, noResultsSelector], page);
-
-    if (winningSelector === undefined) {
-      const data = createNewProductData('Could not find any selectors.  Puppeteer page exceeded timeout.', '', '');
-      const jsonData = convertToJson([data]);
-      // res.type('application/json').send(jsonData).status(500);
-
-      // TODO duplpicated str, move to config or const file
-      results.errorMsg = 'Could not find any selectors.  Puppeteer page exceeded timeout.';
-      results.jsonData = jsonData;
-      return results;
-    }
-
-    //if the winning selector is a no result, exit function but return 200 and empty deck.
-    if (winningSelector == noResultsSelector) {
-
-      // TODO this will have to be done from the caller
-      // respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
-
-      results.errorMsg = NO_PRODUCTS_FOUND;
-      return results;
-    }
-
-    //await page.waitForSelector(winningSelector, { timeout: DEFAULT_SEARCH_TIMEOUT });
-    const elements = await page.$$(winningSelector);
-
-    const collectedData = [];
-
-    for (const element of elements) {
-      //Old way - keeping for notes!  We need to get the text content of the product, but we can't just do element.textContent directly
-      //because this will return the textnode and it's children. (one of the child contains text 'open product description').
-      //Filter out the children's text (set to ''), and then finally query the textnode by itself.  QuerySelectorAll does not
-      //include text nodes, only child elements (which is why the actual product title is safe).
-      // const titleElement = await page.evaluate(input => {
-      //     const element = input.querySelector('[data-testid$="-ProductNameTestId"]');
-      //     const children = element.querySelectorAll('*');
-      //     children.forEach(child => {
-      //         child.textContent = '';
-      //     });
-      //     return element.textContent;
-      // }, element);
-
-      //New way - query the div that contains the text and then just get the first child
-      const titleElement = await page.evaluate((inputElement, productNameTestIdSelector) => {
-        const targetElement = inputElement.querySelector(productNameTestIdSelector);
-        return targetElement ? targetElement.firstChild.textContent : '';
-      }, element, '[data-testid$="-ProductNameTestId"]');
-
-      //Get link to the actual store item
-      const hyperlinkElement = await page.evaluate(element => {
-        const hyperlinkElement = element.querySelector('[class^="ProductCardHiddenLink"]');
-        const hyperlink = (hyperlinkElement !== undefined && hyperlinkElement !== null) ? hyperlinkElement.getAttribute("href") : '';
-        return hyperlink;
-      }, element);
-
-      //Queries the price of this product
-      const priceElement = await page.evaluate(input => input.querySelector('[class^="ProductCardPrice--"]').textContent, element);
-
-      // Remove \n char and trim.
-      const titleElementNoNewLines = titleElement.replace(/\n/g, '').trim();
-
-      const data = createNewProductData(titleElementNoNewLines, priceElement, hyperlinkElement);
-      collectedData.push(data);
-    }
-
-    //convert to JSON string and trim()
-    const jsonData = convertToJson(collectedData);
-
-    await page.close();
-
-    results.jsonData = jsonData;
-
-    // res.type('application/json').send(jsonData).status(200);
-    return results;
-  }
-
   /**
    * Get Save-on-Foods Data.
    * @route GET /GetSaveOnFoodsData
@@ -180,7 +81,7 @@ export async function initApp() {
     const searchStr = encodeURI(req.query.search); //<--'search'  is the attribute (strange how it doesnt take a string value instead)
     const endpoint = `https://www.saveonfoods.com/sm/pickup/rsid/2287/results?q=${searchStr}&take=30&sort=price`;
     try {
-      const results = await processJimPattisonFoodGroupData(page, endpoint);
+      const results = await processJimPattisonFoodGroupData(page, endpoint, BROWSER);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -224,7 +125,7 @@ export async function initApp() {
     const searchStr = encodeURI(req.query.search);
     const endpoint = `https://www.pricesmartfoods.com/sm/pickup/rsid/2274/results?q=${searchStr}&take=30&sort=price`;
     try {
-      const results = await processJimPattisonFoodGroupData(page, endpoint, res);
+      const results = await processJimPattisonFoodGroupData(page, endpoint, BROWSER);
 
       if (results.errorMsg === NO_PRODUCTS_FOUND) {
         respondOkWithMsg(NO_PRODUCTS_FOUND, "404", res);
@@ -398,31 +299,6 @@ export async function initApp() {
     res.type('application/json').send(jsonData).status(200);
   }
 
-  // TODO REMOVE ME WHEN FINISHED MOVING ALL VENDOR LOGIC
-  //This will race each selector and  the one with the fastest result
-  //will be one returned.  Each selector has a race against a setTimeout,
-  //hence the 2nd Promise.race().
-  async function getWinningSelector(selectors, page) {
-    try {
-
-      const winningSelector = await Promise.race(
-        selectors.map(selector => {
-          // For each selector in the array, we create a new Promise
-          return Promise.race([
-            // We use Promise.race() to race two promises:
-            page.waitForSelector(selector),  // 1. Wait for the selector to appear on the page
-            new Promise((_, reject) => setTimeout(reject, DEFAULT_SEARCH_TIMEOUT))  // 2. Create a timeout promise
-          ]).then(() => selector);
-          // If either promise resolves, we extract the corresponding selector value
-        })
-      );
-
-      return winningSelector;
-      // Once the race is settled and we have the winning selector, we return it from the function
-    } catch (error) {
-      console.log(error + ": " + "Could not find any selectors");
-    }
-  }
 
   app.get('/helloWorld', async (_req, res) => {
     res.json('Hello World!  🤩');
